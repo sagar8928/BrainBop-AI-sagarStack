@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.1",
+    "@prisma/client": "^6.19.0",
     "axios": "^1.13.2",
     "mongoose": "^8.19.4",
     "next": "16.0.1",
     "openai": "^6.9.0",
+    "prisma": "^6.19.0",
     "prismjs": "^1.30.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",

@@ -1,17 +1,15 @@
 import { Webhook } from 'svix';
 import { NextResponse } from 'next/server';
-import connectDB from '@/app/config/db';
-import User from '@/app/models/User';
+import prisma from '@/app/models/prisma';
 import { headers } from 'next/headers';
 
 export async function POST(req) {
-  const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
+  const wh = new Webhook(process.env.SIGNING_SECRET);
 
-  const headerPayload = headers();
   const svixHeaders = {
-    'svix-id': headerPayload.get('svix-id'),
-    'svix-timestamp': headerPayload.get('svix-timestamp'),
-    'svix-signature': headerPayload.get('svix-signature'),
+    'svix-id': headers().get('svix-id'),
+    'svix-timestamp': headers().get('svix-timestamp'),
+    'svix-signature': headers().get('svix-signature'),
   };
 
   const payload = await req.json();
@@ -20,25 +18,33 @@ export async function POST(req) {
   const { data, type } = wh.verify(body, svixHeaders);
 
   const userData = {
-    _id: data.id,
-    email: data.email_addresses?.[0]?.email_address,
+    id: data.id,
+    email: data.email_addresses?.[0]?.email_address || null,
     name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
-    image: data.image_url,
+    image: data.image_url || null,
   };
-
-  await connectDB();
 
   switch (type) {
     case 'user.created':
-      await User.create(userData);
+      await prisma.user.upsert({
+        where: { id: data.id },
+        create: userData,
+        update: userData,
+      });
       break;
 
     case 'user.updated':
-      await User.findByIdAndUpdate(data.id, userData);
+      await prisma.user.upsert({
+        where: { id: data.id },
+        create: userData,
+        update: userData,
+      });
       break;
 
     case 'user.deleted':
-      await User.findByIdAndDelete(data.id);
+      await prisma.user.deleteMany({
+        where: { id: data.id },
+      });
       break;
   }
 

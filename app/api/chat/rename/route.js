@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getAuth } from '@clerk/nextjs/server';
 import prisma from '@/app/models/prisma';
 
 export async function POST(req) {
   try {
-    const { userId } = auth();
+    const { userId } = getAuth(req);
+
     if (!userId) {
       return NextResponse.json(
         { success: false, message: 'User not authenticated' },
@@ -12,43 +13,37 @@ export async function POST(req) {
       );
     }
 
-    const { chatId } = await req.json();
+    const { chatId, name } = await req.json();
 
-    if (!chatId) {
+    if (!chatId || !name) {
       return NextResponse.json(
-        { success: false, message: 'chatId is required' },
+        { success: false, message: 'chatId and name are required' },
         { status: 400 }
       );
     }
 
-    // Check ownership
     const chat = await prisma.chat.findFirst({
       where: { id: chatId, userId },
     });
 
     if (!chat) {
-      return NextResponse.json({
-        success: false,
-        message: 'Chat not found or not yours',
-      });
+      return NextResponse.json(
+        { success: false, message: 'Chat not found or unauthorized' },
+        { status: 404 }
+      );
     }
 
-    // Delete messages first (due to foreign key constraints)
-    await prisma.message.deleteMany({
-      where: { chatId },
-    });
-
-    // Delete chat
-    await prisma.chat.delete({
+    await prisma.chat.update({
       where: { id: chatId },
+      data: { name },
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Chat deleted successfully',
+      message: 'Chat renamed successfully',
     });
   } catch (error) {
-    console.error('Delete chat error:', error);
+    console.error('Rename chat error:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

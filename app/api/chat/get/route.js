@@ -4,8 +4,8 @@ import prisma from '@/app/models/prisma';
 
 export async function GET(req) {
   try {
+    // Extract token from Authorization header
     const { userId } = getAuth(req);
-
     if (!userId) {
       return NextResponse.json(
         { success: false, message: 'User not authenticated' },
@@ -24,10 +24,10 @@ export async function GET(req) {
     });
 
     return NextResponse.json({ success: true, chats });
-  } catch (error) {
-    console.error('Fetch chats error:', error);
+  } catch (err) {
+    console.error('Fetch chats error:', err);
     return NextResponse.json(
-      { success: false, message: error.message },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }

@@ -1,11 +1,11 @@
 import { getAuth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import Chat from '@/app/models/Chat';
-import Message from '@/app/models/Message';
+import prisma from '@/app/models/prisma';
 
 export async function POST(req) {
   try {
     const { userId } = getAuth(req);
+
     if (!userId) {
       return NextResponse.json({
         success: false,
@@ -13,8 +13,7 @@ export async function POST(req) {
       });
     }
 
-    const body = await req.json();
-    const { chatId } = body;
+    const { chatId } = await req.json();
 
     if (!chatId) {
       return NextResponse.json({
@@ -23,24 +22,34 @@ export async function POST(req) {
       });
     }
 
-    // Find the chat and ensure it belongs to the user
-    const chat = await Chat.findOne({ where: { id: chatId, userId } });
+    // Validate chat ownership
+    const chat = await prisma.chat.findFirst({
+      where: {
+        id: chatId,
+        userId,
+      },
+    });
+
     if (!chat) {
       return NextResponse.json({
         success: false,
-        message: 'Chat not found or you do not have permission to delete it',
+        message: 'Chat not found or you are not authorized',
       });
     }
 
-    // Delete all messages associated with this chat
-    await Message.destroy({ where: { chatId } });
+    // First delete messages
+    await prisma.message.deleteMany({
+      where: { chatId },
+    });
 
-    // Delete the chat itself
-    await chat.destroy();
+    // Then delete chat
+    await prisma.chat.delete({
+      where: { id: chatId },
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Chat and all associated messages deleted successfully',
+      message: 'Chat deleted successfully',
     });
   } catch (error) {
     console.error('Delete chat error:', error);

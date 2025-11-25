@@ -5,14 +5,14 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
-import { useApi } from '@/app/lib/api'; //  import the hook
+import { useApi } from '@/app/lib/api';
 
 function PromptBox({ isLoading, setIsLoading }) {
   const [prompt, setPrompt] = useState('');
   const { user, chats, setChats, selectedChat, setSelectedChat } =
     useAppContext();
 
-  const api = useApi(); //  token included automatically
+  const api = useApi();
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -24,83 +24,84 @@ function PromptBox({ isLoading, setIsLoading }) {
   const sendPrompt = async (e) => {
     e.preventDefault();
 
-    if (!user) return toast.error('Login to send message');
-    if (isLoading) return toast.error('Wait for the previous prompt');
+    if (!user) return toast.error('Login first');
+    if (!selectedChat) return toast.error('No chat selected');
+    if (!prompt.trim()) return;
+    if (isLoading) return toast.error('Wait for previous message');
 
     setIsLoading(true);
 
-    const promptCopy = prompt;
+    const promptCopy = prompt.trim();
     setPrompt('');
 
-    const userPrompt = {
+    const userMessage = {
       role: 'user',
       content: promptCopy,
       timestamp: Date.now(),
     };
 
-    // Add to chats
-    setChats((prevChats) =>
-      prevChats.map((chat) =>
+    // UPDATE: add user message locally
+    setChats((prev) =>
+      prev.map((chat) =>
         chat.id === selectedChat.id
-          ? { ...chat, messages: [...chat.messages, userPrompt] }
+          ? { ...chat, messages: [...chat.messages, userMessage] }
           : chat
       )
     );
-
-    // Add to selected chat
     setSelectedChat((prev) => ({
       ...prev,
-      messages: [...prev.messages, userPrompt],
+      messages: [...prev.messages, userMessage],
     }));
 
     try {
-      //  use api hook instead of raw axios
       const { data } = await api.post('/api/chat/ai', {
         chatId: selectedChat.id,
         prompt: promptCopy,
       });
 
-      if (!data.success) throw new Error();
+      if (!data || !data.success || !data.response) {
+        throw new Error('Invalid response');
+      }
 
-      const aiMessage = data.data;
+      const aiMessage = data.response;
 
-      // Update chats
-      setChats((prevChats) =>
-        prevChats.map((chat) =>
-          chat.id === selectedChat.id
-            ? { ...chat, messages: [...chat.messages, aiMessage] }
-            : chat
-        )
-      );
-
-      // Typing animation
-      const tokens = aiMessage.content.split(' ');
-
+      // Add empty assistant message for typing effect
       let assistant = {
         role: 'assistant',
         content: '',
         timestamp: Date.now(),
       };
 
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === selectedChat.id
+            ? { ...c, messages: [...c.messages, assistant] }
+            : c
+        )
+      );
+
       setSelectedChat((prev) => ({
         ...prev,
         messages: [...prev.messages, assistant],
       }));
 
-      tokens.forEach((_, i) => {
+      // Typing animation
+      const words = aiMessage.content.split(' ');
+
+      words.forEach((_, i) => {
         setTimeout(() => {
           setSelectedChat((prev) => {
             const updated = [...prev.messages];
-            updated[updated.length - 1].content = tokens
+            updated[updated.length - 1].content = words
               .slice(0, i + 1)
               .join(' ');
             return { ...prev, messages: updated };
           });
-        }, i * 70);
+        }, i * 60);
       });
     } catch (err) {
-      toast.error('Something went wrong');
       console.error(err);
+      toast.error('Failed to get response');
     }
 
     setIsLoading(false);
@@ -110,17 +111,16 @@ function PromptBox({ isLoading, setIsLoading }) {
     <form
       onSubmit={sendPrompt}
       className={`w-full ${
-        selectedChat?.messages.length > 0 ? 'max-w-3xl' : 'max-w-2xl'
-      } bg-[#404045] p-4 rounded-3xl mt-4 transition-all`}
+        selectedChat?.messages?.length > 0 ? 'max-w-3xl' : 'max-w-2xl'
+      } bg-[#404045] p-4 rounded-3xl mt-4`}
     >
       <textarea
-        onKeyDown={handleKeyDown}
-        className="outline-none w-full resize-none bg-transparent"
-        rows={2}
-        placeholder="Message BrainBop"
-        required
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Message BrainBop"
+        className="outline-none w-full resize-none bg-transparent"
+        rows={2}
       />
 
       <div className="flex items-center justify-between text-sm">

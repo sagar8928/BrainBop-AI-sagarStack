@@ -1,3 +1,5 @@
+'use client';
+
 import { assets } from '@/assets/assets';
 import Image from 'next/image';
 import React, { useState } from 'react';
@@ -7,8 +9,9 @@ import ChatLable from './ChatLable';
 
 function Sidebar({ expand, setExpand }) {
   const { openSignIn } = useClerk();
-  const { user } = useAppContext();
+  const { user, chats, createNewChat } = useAppContext(); //  fixed function name
   const [openMenu, setOpenMenu] = useState({ id: 0, open: false });
+
   return (
     <div
       className={`flex flex-col justify-between bg-[#212327] pt-7 transition-all duration-300 z-50 max-md:absolute max-md:h-screen ${
@@ -42,8 +45,6 @@ function Sidebar({ expand, setExpand }) {
               alt="Toggle Sidebar"
               className="hidden md:block w-7"
             />
-
-            {/* Tooltip */}
             <div className="absolute left-full ml-2 opacity-0 group-hover:opacity-100 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
               {expand ? 'Close Sidebar' : 'Open Sidebar'}
             </div>
@@ -52,6 +53,7 @@ function Sidebar({ expand, setExpand }) {
 
         {/* New Chat Button */}
         <button
+          onClick={createNewChat} //  fixed
           className={`mt-8 flex items-center justify-center cursor-pointer ${
             expand
               ? 'bg-primary hover:opacity-90 rounded-2xl gap-2 p-2.5 w-max'
@@ -76,7 +78,15 @@ function Sidebar({ expand, setExpand }) {
         {expand && (
           <div className="mt-8 text-white/25 text-sm">
             <p className="my-1">Recents</p>
-            <ChatLable openMenu={openMenu} setOpenMenu={setOpenMenu} />
+            {chats.map((chat) => (
+              <ChatLable
+                key={chat.id} //  required
+                name={chat.name}
+                id={chat.id}
+                openMenu={openMenu}
+                setOpenMenu={setOpenMenu}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -96,7 +106,6 @@ function Sidebar({ expand, setExpand }) {
             src={expand ? assets.phone_icon : assets.phone_icon_dull}
             alt="Phone icon"
           />
-
           {/* Tooltip with QR */}
           <div
             className={`absolute -top-16 pb-8 ${

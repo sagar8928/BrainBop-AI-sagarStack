@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
-import { useApi } from '@/app/lib/api';
+import { useApi } from '@/app/context/lib/api';
 
 function PromptBox({ isLoading, setIsLoading }) {
   const [prompt, setPrompt] = useState('');
